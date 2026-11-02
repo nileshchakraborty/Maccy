@@ -14,7 +14,8 @@ struct ListHeaderView: View {
   var body: some View {
     HStack {
       if showTitle {
-        Text("Maccy")
+        Text("ClipVault")
+          .fontWeight(.medium)
           .foregroundStyle(.secondary)
           .padding(.leading, 5)
       }

@@ -53,7 +53,17 @@ struct HistoryItemView: View {
       isSelected: item.isSelected,
       selectionIndex: item.multiSelectionIndex,
       selectionAppearance: selectionAppearance,
-      accessibilityLabel: item.accessibilityLabel
+      accessibilityLabel: item.accessibilityLabel,
+      isPinned: item.isPinned,
+      onCopy: {
+        performSelect()
+      },
+      onTogglePin: {
+        appState.history.togglePin(item)
+      },
+      onDelete: {
+        appState.history.delete(item)
+      }
     ) {
       Text(verbatim: item.title)
     }
@@ -61,6 +71,18 @@ struct HistoryItemView: View {
     .buttonAction(performSelect)
     .onAppear {
       item.ensureThumbnailImage()
+    }
+    .contextMenu {
+      Button("Copy") {
+        performSelect()
+      }
+      Button(item.isPinned ? "Unpin from Pin Board" : "Pin to Pin Board") {
+        appState.history.togglePin(item)
+      }
+      Divider()
+      Button("Delete Item", role: .destructive) {
+        appState.history.delete(item)
+      }
     }
     .accessibilityAction(named: Text(item.isPinned ? "history_item_unpin_action" : "history_item_pin_action")) {
       appState.history.togglePin(item)

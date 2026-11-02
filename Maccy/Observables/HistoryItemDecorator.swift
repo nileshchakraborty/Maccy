@@ -217,7 +217,7 @@ class HistoryItemDecorator: Identifiable, Hashable, HasVisibility {
         case .underline:
           attributedString[lowerBound..<upperBound].underlineStyle = .single
         default:
-          attributedString[lowerBound..<upperBound].backgroundColor = .findHighlightColor
+          attributedString[lowerBound..<upperBound].backgroundColor = NSColor(red: 1.0, green: 0.90, blue: 0.0, alpha: 0.55)
           attributedString[lowerBound..<upperBound].foregroundColor = .black
         }
       }

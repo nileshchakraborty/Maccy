@@ -35,6 +35,43 @@ struct HistoryListView: View {
     return false
   }
 
+  private var isSearching: Bool {
+    !searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+  }
+
+  private var totalMatchCount: Int {
+    pinnedItems.count + unpinnedItems.count
+  }
+
+  private func searchBanner() -> some View {
+    HStack(spacing: 6) {
+      Image(systemName: "magnifyingglass")
+        .font(.system(size: 10, weight: .bold))
+        .foregroundColor(.accentColor)
+
+      Text("SEARCH RESULTS FOR \"\(searchQuery)\"")
+        .font(.system(size: 10, weight: .bold))
+        .foregroundColor(.accentColor)
+        .lineLimit(1)
+
+      Spacer()
+
+      Text("\(totalMatchCount) match\(totalMatchCount == 1 ? "" : "es")")
+        .font(.system(size: 10, weight: .semibold, design: .monospaced))
+        .foregroundColor(.secondary)
+
+      Button(action: { searchQuery = "" }) {
+        Text("Clear")
+          .font(.system(size: 10, weight: .medium))
+          .foregroundColor(.accentColor)
+      }
+      .buttonStyle(.plain)
+      .help("Clear search")
+    }
+    .padding(.horizontal, Popup.horizontalPadding)
+    .padding(.vertical, 4)
+  }
+
   private var topPadding: CGFloat {
     return Popup.verticalSeparatorPadding
   }
@@ -75,6 +112,11 @@ struct HistoryListView: View {
     let scrollBottomPadding = bottomSeparatorVisible ? Popup.verticalSeparatorPadding : bottomPadding
 
     VStack(spacing: 0) {
+      if isSearching {
+        searchBanner()
+        topSeparator()
+      }
+
       if let stack = appState.history.pasteStack,
          !stack.items.isEmpty {
         PasteStackView(stack: stack)
@@ -99,55 +141,78 @@ struct HistoryListView: View {
     .readHeight(appState, into: \.popup.extraTopHeight)
 
     ScrollView {
-      ScrollViewReader { proxy in
-        MultipleSelectionListView(items: unpinnedItems) { previous, item, next, index in
-          HistoryItemView(item: item, previous: previous, next: next, index: index)
-        }
-        .padding(.top, scrollTopPadding)
-        .padding(.bottom, scrollBottomPadding)
-        .task(id: appState.navigator.scrollTarget) {
-          guard appState.navigator.scrollTarget != nil else { return }
-
-          try? await Task.sleep(for: .milliseconds(10))
-          guard !Task.isCancelled else { return }
-
-          if let selection = appState.navigator.scrollTarget {
-            proxy.scrollTo(selection)
-            appState.navigator.scrollTarget = nil
+      if isSearching && pinnedItems.isEmpty && unpinnedItems.isEmpty {
+        VStack(spacing: 8) {
+          Image(systemName: "magnifyingglass")
+            .font(.system(size: 24))
+            .foregroundColor(.secondary.opacity(0.6))
+            .padding(.top, 24)
+          Text("No results for \"\(searchQuery)\"")
+            .font(.system(size: 13, weight: .medium))
+            .foregroundColor(.secondary)
+          Text("Try searching for different keywords")
+            .font(.system(size: 11))
+            .foregroundColor(.secondary.opacity(0.7))
+          Button("Clear Search") {
+            searchQuery = ""
           }
+          .buttonStyle(.bordered)
+          .controlSize(.small)
+          .padding(.top, 4)
+          .padding(.bottom, 24)
         }
-        .onChange(of: scenePhase) {
-          if scenePhase == .active {
-            searchFocused = true
-            appState.navigator.isKeyboardNavigating = true
-            appState.navigator.select(item: appState.history.firstUnpinnedItem ?? appState.history.firstPinnedItem)
-            appState.preview.enableAutoOpen()
-            appState.preview.resetAutoOpenSuppression()
-            appState.preview.startAutoOpen()
-          } else {
-            modifierFlags.flags = []
-            appState.navigator.isKeyboardNavigating = true
-            appState.preview.cancelAutoOpen()
+        .frame(maxWidth: .infinity)
+      } else {
+        ScrollViewReader { proxy in
+          MultipleSelectionListView(items: unpinnedItems) { previous, item, next, index in
+            HistoryItemView(item: item, previous: previous, next: next, index: index)
           }
-        }
-        // Calculate the total height inside a scroll view.
-        .background {
-          GeometryReader { geo in
-            Color.clear
-              .task(id: appState.popup.needsResize) {
-                try? await Task.sleep(for: .milliseconds(10))
-                guard !Task.isCancelled else { return }
+          .padding(.top, scrollTopPadding)
+          .padding(.bottom, scrollBottomPadding)
+          .task(id: appState.navigator.scrollTarget) {
+            guard appState.navigator.scrollTarget != nil else { return }
 
-                if appState.popup.needsResize {
-                  appState.popup.resize(height: geo.size.height)
+            try? await Task.sleep(for: .milliseconds(10))
+            guard !Task.isCancelled else { return }
+
+            if let selection = appState.navigator.scrollTarget {
+              proxy.scrollTo(selection)
+              appState.navigator.scrollTarget = nil
+            }
+          }
+          .onChange(of: scenePhase) {
+            if scenePhase == .active {
+              searchFocused = true
+              appState.navigator.isKeyboardNavigating = true
+              appState.navigator.select(item: appState.history.firstUnpinnedItem ?? appState.history.firstPinnedItem)
+              appState.preview.enableAutoOpen()
+              appState.preview.resetAutoOpenSuppression()
+              appState.preview.startAutoOpen()
+            } else {
+              modifierFlags.flags = []
+              appState.navigator.isKeyboardNavigating = true
+              appState.preview.cancelAutoOpen()
+            }
+          }
+          // Calculate the total height inside a scroll view.
+          .background {
+            GeometryReader { geo in
+              Color.clear
+                .task(id: appState.popup.needsResize) {
+                  try? await Task.sleep(for: .milliseconds(10))
+                  guard !Task.isCancelled else { return }
+
+                  if appState.popup.needsResize {
+                    appState.popup.resize(height: geo.size.height)
+                  }
                 }
-              }
+            }
           }
         }
+        .contentMargins(.leading, 10, for: .scrollIndicators)
+        .contentMargins(.top, scrollTopPadding, for: .scrollIndicators)
+        .contentMargins(.bottom, scrollBottomPadding, for: .scrollIndicators)
       }
-      .contentMargins(.leading, 10, for: .scrollIndicators)
-      .contentMargins(.top, scrollTopPadding, for: .scrollIndicators)
-      .contentMargins(.bottom, scrollBottomPadding, for: .scrollIndicators)
     }
     .accessibilityIdentifier("history-scroll-view")
 
