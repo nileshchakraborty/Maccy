@@ -102,11 +102,13 @@ class AppState: Sendable {
   }
 
   func openAbout() {
+    popup.close()
     about.openAbout(nil)
   }
 
   @MainActor
   func openPreferences() { // swiftlint:disable:this function_body_length
+    popup.close()
     if settingsWindowController == nil {
       let generalTitle = NSLocalizedString("Title", tableName: "GeneralSettings", comment: "")
       let storageTitle = NSLocalizedString("Title", tableName: "StorageSettings", comment: "")
@@ -167,7 +169,9 @@ class AppState: Sendable {
         ]
       )
     }
+    NSApp.activate(ignoringOtherApps: true)
     settingsWindowController?.show()
+    settingsWindowController?.window?.makeKeyAndOrderFront(nil)
     settingsWindowController?.window?.orderFrontRegardless()
   }
 
